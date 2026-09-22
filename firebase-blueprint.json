@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account and rap stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "username": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "tier": { "type": "string", "enum": ["Free", "Platinum", "VIP", "Top Shelf"] },
+        "ratings": {
+          "type": "object",
+          "properties": {
+            "solo": { "type": "number" },
+            "collab": { "type": "number" },
+            "battle": { "type": "number" },
+            "crew": { "type": "number" },
+            "feature": { "type": "number" },
+            "video": { "type": "number" }
+          }
+        },
+        "dailyDropsUsed": { "type": "number" },
+        "lastDropReset": { "type": "string", "format": "date-time" },
+        "crewId": { "type": "string" }
+      },
+      "required": ["uid", "username", "tier"]
+    },
+    "Track": {
+      "title": "Rap Track",
+      "description": "Recorded audio/video tracks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "title": { "type": "string" },
+        "audioUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["solo", "collab", "battle", "cypher"] },
+        "genre": { "type": "string", "enum": ["Hip hop", "Rap", "Gospel", "Alternative", "R&B", "Blues", "Country"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "plays": { "type": "number" },
+        "views": { "type": "number" },
+        "promoType": { "type": "string", "enum": ["none", "basic", "premium"] }
+      }
+    },
+    "Crew": {
+      "title": "Rap Crew",
+      "description": "A group of up to 30 members",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "owners": { "type": "array", "items": { "type": "string" } },
+        "admins": { "type": "array", "items": { "type": "string" } },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ChatRoom": {
+      "title": "Chat Room",
+      "description": "Public or private chat spaces",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["public", "private"] },
+        "limit": { "type": "number" },
+        "memberIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Contest": {
+      "title": "Daily/Weekly Contest",
+      "description": "Active competitions",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["daily", "weekly", "league"] },
+        "prizePool": { "type": "number" },
+        "endsAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "Global user profiles" },
+    "tracks": { "schema": "Track", "description": "All rap drops" },
+    "crews": { "schema": "Crew", "description": "User formed groups" },
+    "chats": { "schema": "ChatRoom", "description": "Chat channels" },
+    "contests": { "schema": "Contest", "description": "Competitions" }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Cash Stage: Unsigned Vets",
+  "description": "The ultimate rap battleground and meeting place for unsigned artists. Record with pro FX, share music, and climb the ranks drama-free.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

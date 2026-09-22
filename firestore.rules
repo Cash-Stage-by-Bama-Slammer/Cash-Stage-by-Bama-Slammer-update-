@@ -1,0 +1,140 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    // --- User Profile ---
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['username', 'avatarUrl', 'tier', 'crewId'])
+      );
+
+      function isValidUser(data) {
+        return data.uid == request.auth.uid 
+          && data.username is string && data.username.size() >= 3 && data.username.size() <= 32
+          && (data.tier in ['Free', 'Platinum', 'VIP', 'Top Shelf'])
+          && data.ratings is map;
+      }
+    }
+
+    // --- Tracks ---
+    match /tracks/{trackId} {
+      allow read: if true;
+      allow list: if true;
+      
+      allow create: if isSignedIn() && isValidTrack(incoming());
+      allow update: if isOwner(existing().authorId) && isValidTrack(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'plays', 'views', 'promoType'])
+      );
+
+      function isValidTrack(data) {
+        return data.authorId == request.auth.uid
+          && data.title is string && data.title.size() <= 100
+          && data.type in ['solo', 'collab', 'battle', 'cypher']
+          && (data.genre == null || data.genre in ['Hip hop', 'Rap', 'Gospel', 'Alternative', 'R&B', 'Blues', 'Country'])
+          && data.createdAt == request.time;
+      }
+    }
+
+    // --- Crews ---
+    match /crews/{crewId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidCrew(incoming());
+      allow update: if isSignedIn() && (
+        // Only owners/admins can update crew total settings
+        (request.auth.uid in existing().owners || request.auth.uid in existing().admins)
+      ) && isValidCrew(incoming());
+
+      function isValidCrew(data) {
+        return data.name is string && data.name.size() <= 50
+          && data.members.size() <= 30
+          && data.owners.size() <= 2
+          && data.admins.size() <= 4
+          && (resource == null ? (request.auth.uid in data.owners) : true);
+      }
+    }
+
+    // --- Chat Rooms ---
+    match /chats/{chatId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidChat(incoming());
+      allow update: if isSignedIn() && (
+        (incoming().type == 'public' && incoming().memberIds.size() <= 500) ||
+        (incoming().type == 'private' && incoming().memberIds.size() <= 60)
+      );
+
+      function isValidChat(data) {
+        return data.name is string && data.type in ['public', 'private'];
+      }
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+      }
+    }
+
+    // --- Contests & Votes ---
+    match /contests/{contestId} {
+      allow read: if true;
+      allow write: if false; // Only system
+    }
+
+    match /votes/{voteId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incoming().voterId == request.auth.uid;
+    }
+
+    // --- Matchmaking ---
+    match /matchmaking/{requestId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidRequest(incoming());
+      allow update: if isSignedIn() && (
+        // Matches can be set by the 'other' player or system
+        incoming().diff(existing()).affectedKeys().hasAll(['status', 'matchedId'])
+      ) && isValidRequest(incoming());
+      
+      function isValidRequest(data) {
+        return data.requesterId is string 
+          && data.type in ['battle', 'collab']
+          && data.mode in ['audio', 'video', 'live']
+          && data.status in ['searching', 'matched', 'completed'];
+      }
+    }
+  }
+}
