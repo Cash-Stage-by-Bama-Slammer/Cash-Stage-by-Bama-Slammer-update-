@@ -1,1 +1,62 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .text-neon-green {
+    color: #39ff14;
+  }
+  .bg-neon-green {
+    background-color: #39ff14;
+  }
+  .border-neon-green {
+    border-color: #39ff14;
+  }
+  .shadow-neon-green {
+    box-shadow: 0 0 20px rgba(57, 255, 20, 0.45);
+  }
+  
+  .text-electric-purple {
+    color: #c084fc;
+  }
+  .bg-electric-purple {
+    background-color: #9333ea;
+  }
+  .border-electric-purple {
+    border-color: #a855f7;
+  }
+  .shadow-purple-glow {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.45);
+  }
+
+  .text-gold-glow {
+    color: #ffd700;
+  }
+  .bg-gold-glow {
+    background-color: #ffd700;
+  }
+  .border-gold-glow {
+    border-color: #ffd700;
+  }
+  .shadow-gold-glow {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.45);
+  }
+
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #39ff14;
+}

@@ -2,13 +2,21 @@
   "entities": {
     "User": {
       "title": "User Profile",
-      "description": "User account and rap stats",
+      "description": "User account, CS Bucks wallet, and rap stats",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "username": { "type": "string" },
         "avatarUrl": { "type": "string" },
+        "bio": { "type": "string" },
+        "genre": { "type": "string" },
         "tier": { "type": "string", "enum": ["Free", "Platinum", "VIP", "Top Shelf"] },
+        "bamaBucks": { "type": "number" },
+        "csCoins": { "type": "number" },
+        "xp": { "type": "number" },
+        "learningLevel": { "type": "number" },
+        "isBanned": { "type": "boolean" },
+        "bannedReason": { "type": "string" },
         "ratings": {
           "type": "object",
           "properties": {
@@ -21,32 +29,77 @@
           }
         },
         "dailyDropsUsed": { "type": "number" },
-        "lastDropReset": { "type": "string", "format": "date-time" },
         "crewId": { "type": "string" }
       },
       "required": ["uid", "username", "tier"]
     },
     "Track": {
       "title": "Rap Track",
-      "description": "Recorded audio/video tracks",
+      "description": "Recorded audio/video tracks and drops",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
         "title": { "type": "string" },
         "audioUrl": { "type": "string" },
         "videoUrl": { "type": "string" },
+        "imageUrl": { "type": "string" },
         "type": { "type": "string", "enum": ["solo", "collab", "battle", "cypher"] },
         "genre": { "type": "string", "enum": ["Hip hop", "Rap", "Gospel", "Alternative", "R&B", "Blues", "Country"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "plays": { "type": "number" },
         "views": { "type": "number" },
+        "likes": { "type": "number" },
         "promoType": { "type": "string", "enum": ["none", "basic", "premium"] }
+      }
+    },
+    "Battle": {
+      "title": "1v1 Arena Battle",
+      "description": "Live head to head rap battle with anonymous voting",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "genre": { "type": "string" },
+        "contenderA": { "type": "object" },
+        "contenderB": { "type": "object" },
+        "votesA": { "type": "number" },
+        "votesB": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "completed", "voting"] },
+        "prizePool": { "type": "number" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "winnerId": { "type": "string" }
+      }
+    },
+    "Vote": {
+      "title": "Anonymous Vote",
+      "description": "Locked anonymous vote on battle or drop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "battleId": { "type": "string" },
+        "voterId": { "type": "string" },
+        "contenderChosen": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LedgerTransaction": {
+      "title": "CS Bucks Ledger",
+      "description": "Audit transaction log for CS Bucks & Bama Wallet",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["dice_snake_eyes", "battle_prize", "quiz_reward", "collab_split", "tip", "solo_drop", "promo"] },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
       }
     },
     "Crew": {
       "title": "Rap Crew",
-      "description": "A group of up to 30 members",
+      "description": "A syndicate of up to 30 members",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -64,14 +117,41 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["public", "private"] },
+        "type": { "type": "string", "enum": ["public", "private", "crew"] },
         "limit": { "type": "number" },
+        "isFrozen": { "type": "boolean" },
         "memberIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Message in a chat room",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LearningScore": {
+      "title": "Learning Scoreboard Entry",
+      "description": "Progress and scores in 5-level MC Academy",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "level": { "type": "number" },
+        "xp": { "type": "number" },
+        "csBucksEarned": { "type": "number" }
       }
     },
     "Contest": {
       "title": "Daily/Weekly Contest",
-      "description": "Active competitions",
+      "description": "Active league competitions with top 10 prize pool",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -82,10 +162,15 @@
     }
   },
   "firestore": {
-    "users": { "schema": "User", "description": "Global user profiles" },
-    "tracks": { "schema": "Track", "description": "All rap drops" },
-    "crews": { "schema": "Crew", "description": "User formed groups" },
-    "chats": { "schema": "ChatRoom", "description": "Chat channels" },
-    "contests": { "schema": "Contest", "description": "Competitions" }
+    "users": { "schema": "User", "description": "Global user profiles and balances" },
+    "tracks": { "schema": "Track", "description": "All rap drops and uploads" },
+    "battles": { "schema": "Battle", "description": "1v1 arena battles" },
+    "votes": { "schema": "Vote", "description": "Anonymous voting records" },
+    "ledger": { "schema": "LedgerTransaction", "description": "CS Bucks transaction ledger" },
+    "crews": { "schema": "Crew", "description": "Syndicates up to 30 members" },
+    "chats": { "schema": "ChatRoom", "description": "Public and private chat rooms" },
+    "messages": { "schema": "ChatMessage", "description": "Real-time chat messages" },
+    "learning": { "schema": "LearningScore", "description": "5-Level academy scores" },
+    "contests": { "schema": "Contest", "description": "Leagues and competitions" }
   }
 }
