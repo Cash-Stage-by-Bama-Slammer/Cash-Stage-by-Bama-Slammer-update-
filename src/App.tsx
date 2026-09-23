@@ -40,7 +40,11 @@ import {
   Camera,
   Edit3,
   MapPin,
-  Clock
+  Clock,
+  Palette,
+  PhoneCall,
+  Music,
+  ExternalLink
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -83,6 +87,8 @@ import { AiModerationCenter } from './components/AiModerationCenter';
 import { MediaUploadModal } from './components/MediaUploadModal';
 import { Listen4ListenSession } from './components/Listen4ListenSession';
 import { ProfileCustomizerModal } from './components/ProfileCustomizerModal';
+import { LiveCallsModal } from './components/LiveCallsModal';
+import { BeatMarketplaceModal } from './components/BeatMarketplaceModal';
 import { banManager } from './lib/banManager';
 import { audioEngine } from './lib/audioEngine';
 
@@ -103,6 +109,7 @@ export interface UserProfile {
   username: string;
   avatarUrl: string | null;
   bannerTheme?: string;
+  profileTheme?: 'neon_green' | 'purple' | 'gold';
   bio?: string;
   location?: string;
   primaryGenre?: string;
@@ -135,12 +142,14 @@ const CATEGORIES = ['ALL', 'SOLO', 'COLLAB', 'CYPHER', 'BATTLE'];
 
 export default function App() {
   const [view, setView] = useState<'feed' | 'studio' | 'arena' | 'hub' | 'profile'>('feed');
-  const [hubTab, setHubTab] = useState<'l4l' | 'dice' | 'learning' | 'crews' | 'chat' | 'radio' | 'wallet' | 'moderation' | 'shop'>('l4l');
+  const [hubTab, setHubTab] = useState<'l4l' | 'dice' | 'learning' | 'crews' | 'chat' | 'radio' | 'wallet' | 'moderation' | 'shop' | 'calls' | 'beats'>('l4l');
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showMediaModal, setShowMediaModal] = useState(false);
   const [showProfileCustomizer, setShowProfileCustomizer] = useState(false);
+  const [showLiveCallsModal, setShowLiveCallsModal] = useState(false);
+  const [showBeatMarketplaceModal, setShowBeatMarketplaceModal] = useState(false);
 
   // Sync Auth & Profile
   useEffect(() => {
@@ -156,6 +165,7 @@ export default function App() {
               username: currentUser.displayName || 'Unsigned Vet',
               avatarUrl: currentUser.photoURL || 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=200&auto=format&fit=crop&q=80',
               bannerTheme: 'gold',
+              profileTheme: 'neon_green',
               bio: '100% human unsigned lyricist. Drama-free zone. 18+ verified.',
               location: 'Birmingham, AL',
               primaryGenre: 'Rap',
@@ -187,6 +197,17 @@ export default function App() {
       await signInWithPopup(auth, new GoogleAuthProvider());
     } catch (error) {
       console.error('Login failed', error);
+    }
+  };
+
+  const handleUpdateProfileTheme = async (newTheme: 'neon_green' | 'purple' | 'gold') => {
+    if (!profile || !user) return;
+    try {
+      const updated: UserProfile = { ...profile, profileTheme: newTheme };
+      setProfile(updated);
+      await updateDoc(doc(db, 'users', user.uid), { profileTheme: newTheme });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
     }
   };
 
@@ -252,14 +273,30 @@ export default function App() {
           </div>
         </div>
 
-        {/* Balance Chip & Profile Avatar */}
-        <div className="flex items-center gap-3">
+        {/* Top Header Quick Actions & Balance */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowLiveCallsModal(true)}
+            className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 hover:border-lime-400 text-lime-400 flex items-center justify-center transition-colors shadow-sm"
+            title="Live Audio Calls & Battle Invites"
+          >
+            <PhoneCall size={14} />
+          </button>
+
+          <button
+            onClick={() => setShowBeatMarketplaceModal(true)}
+            className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 hover:border-yellow-400 text-yellow-400 flex items-center justify-center transition-colors shadow-sm"
+            title="Beat Marketplace (1000+ Free Beats)"
+          >
+            <Music size={14} />
+          </button>
+
           <button
             onClick={() => {
               setView('hub');
               setHubTab('wallet');
             }}
-            className="bg-zinc-900 border border-zinc-800 hover:border-yellow-400/50 px-3 py-1 rounded-full flex items-center gap-1.5 transition-colors"
+            className="bg-zinc-900 border border-zinc-800 hover:border-yellow-400/50 px-2.5 py-1 rounded-full flex items-center gap-1.5 transition-colors"
           >
             <Wallet size={12} className="text-yellow-400" />
             <span className="text-xs font-mono font-black text-lime-400">
@@ -301,6 +338,8 @@ export default function App() {
                   setView('hub');
                   setHubTab('l4l');
                 }}
+                onOpenLiveCalls={() => setShowLiveCallsModal(true)}
+                onOpenBeats={() => setShowBeatMarketplaceModal(true)}
               />
             </motion.div>
           )}
@@ -332,6 +371,8 @@ export default function App() {
                 userId={user?.uid}
                 activeTab={hubTab}
                 setActiveTab={setHubTab}
+                onOpenLiveCalls={() => setShowLiveCallsModal(true)}
+                onOpenBeats={() => setShowBeatMarketplaceModal(true)}
               />
             </motion.div>
           )}
@@ -343,6 +384,7 @@ export default function App() {
                 logout={logout}
                 onOpenUpload={() => setShowMediaModal(true)}
                 onOpenCustomize={() => setShowProfileCustomizer(true)}
+                onThemeChange={handleUpdateProfileTheme}
               />
             </motion.div>
           )}
@@ -402,6 +444,30 @@ export default function App() {
           onProfileUpdated={(updated) => setProfile(updated)}
         />
       )}
+
+      {/* Live Audio Calls & Battle Invites Modal */}
+      {showLiveCallsModal && (
+        <LiveCallsModal
+          userId={user?.uid}
+          username={profile?.username}
+          onClose={() => setShowLiveCallsModal(false)}
+          onStartBattleCall={(artist) => {
+            setShowLiveCallsModal(false);
+            setView('arena');
+          }}
+        />
+      )}
+
+      {/* Beat Marketplace Modal */}
+      {showBeatMarketplaceModal && (
+        <BeatMarketplaceModal
+          onClose={() => setShowBeatMarketplaceModal(false)}
+          onSelectBeatForStudio={(title, bpm) => {
+            setShowBeatMarketplaceModal(false);
+            setView('studio');
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -436,6 +502,8 @@ const FeedView = ({
   onNavigateToDice,
   onNavigateToRadio,
   onNavigateToL4L,
+  onOpenLiveCalls,
+  onOpenBeats,
 }: {
   profile: UserProfile | null;
   onNavigateToStudio: () => void;
@@ -443,6 +511,8 @@ const FeedView = ({
   onNavigateToDice: () => void;
   onNavigateToRadio: () => void;
   onNavigateToL4L: () => void;
+  onOpenLiveCalls: () => void;
+  onOpenBeats: () => void;
 }) => {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [selectedGenre, setSelectedGenre] = useState('ALL');
@@ -552,6 +622,53 @@ const FeedView = ({
 
   return (
     <div className="space-y-4 pb-10">
+      {/* Official Google Play Store Banner */}
+      <div className="bg-gradient-to-r from-purple-950/90 via-zinc-950 to-yellow-950/80 border border-yellow-500/40 p-4 rounded-3xl space-y-2 shadow-2xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-yellow-400 text-black flex items-center justify-center font-black text-xs shadow-md shadow-yellow-400/20">
+              CS
+            </div>
+            <div>
+              <span className="text-[9px] font-mono text-yellow-400 uppercase font-black tracking-widest block">
+                Official Google Play Release
+              </span>
+              <h3 className="text-xs font-black uppercase text-white">
+                Cash Stage by Miss Bama Slammer
+              </h3>
+            </div>
+          </div>
+
+          <a
+            href="https://play.google.com/store/apps/details?id=com.cash.missalabamaslammer.cashstage"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-lime-400 text-[10px] font-mono font-bold flex items-center gap-1 transition-all"
+          >
+            Play Store <ExternalLink size={10} />
+          </a>
+        </div>
+        <p className="text-[11px] text-zinc-400 leading-snug">
+          Where Bars Turn Into Bankrolls • 100% Human Music Battle Arena • Anti-AI Deepfake Sentinel Active.
+        </p>
+
+        {/* Quick Launchers: Live Calls & Beat Marketplace */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={onOpenLiveCalls}
+            className="py-2 px-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-lime-400/40 text-lime-400 text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all shadow-sm"
+          >
+            <PhoneCall size={12} /> Live Calls
+          </button>
+          <button
+            onClick={onOpenBeats}
+            className="py-2 px-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-yellow-400/40 text-yellow-400 text-[10px] font-black uppercase flex items-center justify-center gap-1.5 transition-all shadow-sm"
+          >
+            <Music size={12} /> Beats Store (1000+)
+          </button>
+        </div>
+      </div>
+
       {/* Listen 4 Listen Spotlight Card */}
       <button
         onClick={onNavigateToL4L}
@@ -663,12 +780,18 @@ const FeedView = ({
               key={track.id}
               className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-4 shadow-xl relative overflow-hidden"
             >
-              {/* Promo Badge */}
-              {track.promoType && track.promoType !== 'none' && (
-                <div className="bg-gradient-to-r from-purple-600 to-lime-500 text-black px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider inline-block">
-                  {track.promoType}
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Promo Badge */}
+                {track.promoType && track.promoType !== 'none' && (
+                  <div className="bg-gradient-to-r from-purple-600 to-lime-500 text-black px-3 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider inline-block">
+                    {track.promoType}
+                  </div>
+                )}
+                {/* Golden / Silver Seal Human Verification Badge */}
+                <span className="bg-yellow-400/10 text-yellow-300 border border-yellow-400/30 px-2.5 py-0.5 rounded-full text-[8px] font-mono font-black uppercase tracking-wider flex items-center gap-1">
+                  👑 Golden Seal • 100% Human Audio Verified
+                </span>
+              </div>
 
               {/* Title & Author */}
               <div className="flex items-start justify-between">
@@ -850,15 +973,21 @@ const HubView = ({
   userId,
   activeTab,
   setActiveTab,
+  onOpenLiveCalls,
+  onOpenBeats,
 }: {
   profile: UserProfile | null;
   setProfile: (p: UserProfile) => void;
   userId?: string;
-  activeTab: 'l4l' | 'dice' | 'learning' | 'crews' | 'chat' | 'radio' | 'wallet' | 'moderation' | 'shop';
+  activeTab: 'l4l' | 'dice' | 'learning' | 'crews' | 'chat' | 'radio' | 'wallet' | 'moderation' | 'shop' | 'calls' | 'beats';
   setActiveTab: (t: any) => void;
+  onOpenLiveCalls: () => void;
+  onOpenBeats: () => void;
 }) => {
   const tabs = [
     { id: 'l4l', label: 'Listen 4 Listen', icon: Headphones },
+    { id: 'calls', label: 'Live Calls', icon: PhoneCall },
+    { id: 'beats', label: 'Beats (1000+)', icon: Music },
     { id: 'dice', label: 'Roll Dice', icon: Dices },
     { id: 'learning', label: 'Academy', icon: GraduationCap },
     { id: 'crews', label: 'Crews', icon: Users },
@@ -897,6 +1026,60 @@ const HubView = ({
         {activeTab === 'l4l' && (
           <motion.div key="l4l" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <Listen4ListenSession userId={userId} username={profile?.username} />
+          </motion.div>
+        )}
+
+        {activeTab === 'calls' && (
+          <motion.div key="calls" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-lime-400 text-black shadow-md shadow-lime-400/20">
+                    <PhoneCall size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase italic text-white">Live Calling & Battle Invites</h3>
+                    <p className="text-[10px] text-zinc-400 font-mono">1v1 Direct Audio Huddle & Cypher Challenges</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Place direct real-time calls to verified unsigned artists, initiate spontaneous audio cyphers, or challenge contenders to an arena match.
+              </p>
+              <button
+                onClick={onOpenLiveCalls}
+                className="w-full py-3.5 rounded-2xl bg-lime-400 hover:bg-lime-300 text-black text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-lg shadow-lime-400/20"
+              >
+                Open Live Calling Huddle
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'beats' && (
+          <motion.div key="beats" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-yellow-400 text-black shadow-md shadow-yellow-400/20">
+                    <Music size={18} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase italic text-white">Beat Marketplace (1,000+ Beats)</h3>
+                    <p className="text-[10px] text-zinc-400 font-mono">Royalty-Free & Licensed Trap, Boom Bap, Gospel & Country</p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Browse, stream, and license high-energy instrumentals or upload your own beats to earn CS Bucks directly from other artists.
+              </p>
+              <button
+                onClick={onOpenBeats}
+                className="w-full py-3.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-black text-xs font-black uppercase tracking-wider active:scale-95 transition-all shadow-lg shadow-yellow-400/20"
+              >
+                Launch Beat Store
+              </button>
+            </div>
           </motion.div>
         )}
 
@@ -1112,12 +1295,68 @@ const ProfileView = ({
   logout,
   onOpenUpload,
   onOpenCustomize,
+  onThemeChange,
 }: {
   profile: UserProfile | null;
   logout: () => void;
   onOpenUpload: () => void;
   onOpenCustomize: () => void;
+  onThemeChange: (theme: 'neon_green' | 'purple' | 'gold') => void;
 }) => {
+  const currentTheme = profile?.profileTheme || 'neon_green';
+
+  const themeStyles: Record<'neon_green' | 'purple' | 'gold', {
+    name: string;
+    badgeLabel: string;
+    badgeClass: string;
+    borderClass: string;
+    ringClass: string;
+    textClass: string;
+    cardShadow: string;
+    actionButton: string;
+    uploadButton: string;
+    ratingAccent: string;
+  }> = {
+    neon_green: {
+      name: 'Neon Green',
+      badgeLabel: 'Neon Green Theme Active',
+      badgeClass: 'bg-lime-400/10 text-lime-400 border-lime-400/40',
+      borderClass: 'border-lime-400/60',
+      ringClass: 'ring-lime-400',
+      textClass: 'text-lime-400',
+      cardShadow: 'shadow-[0_0_30px_rgba(57,255,20,0.15)]',
+      actionButton: 'border-lime-400 text-lime-400 hover:bg-lime-400/10',
+      uploadButton: 'bg-lime-400 hover:bg-lime-300 text-black shadow-lg shadow-lime-400/20',
+      ratingAccent: 'text-lime-400',
+    },
+    purple: {
+      name: 'Electric Purple',
+      badgeLabel: 'Electric Purple Theme Active',
+      badgeClass: 'bg-purple-900/30 text-purple-300 border-purple-500/40',
+      borderClass: 'border-purple-500/60',
+      ringClass: 'ring-purple-500',
+      textClass: 'text-purple-400',
+      cardShadow: 'shadow-[0_0_30px_rgba(168,85,247,0.15)]',
+      actionButton: 'border-purple-500 text-purple-400 hover:bg-purple-500/10',
+      uploadButton: 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-600/30',
+      ratingAccent: 'text-purple-400',
+    },
+    gold: {
+      name: 'Burnished Gold',
+      badgeLabel: 'Burnished Gold Theme Active',
+      badgeClass: 'bg-yellow-400/10 text-yellow-300 border-yellow-400/40',
+      borderClass: 'border-yellow-400/60',
+      ringClass: 'ring-yellow-400',
+      textClass: 'text-yellow-400',
+      cardShadow: 'shadow-[0_0_30px_rgba(255,215,0,0.15)]',
+      actionButton: 'border-yellow-400 text-yellow-400 hover:bg-yellow-400/10',
+      uploadButton: 'bg-yellow-400 hover:bg-yellow-300 text-black shadow-lg shadow-yellow-400/20',
+      ratingAccent: 'text-yellow-400',
+    },
+  };
+
+  const activeThemeStyle = themeStyles[currentTheme];
+
   const bannerGradients: Record<string, string> = {
     gold: 'bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-800',
     neon: 'bg-gradient-to-r from-lime-600 via-emerald-500 to-zinc-900',
@@ -1130,22 +1369,27 @@ const ProfileView = ({
   return (
     <div className="space-y-6 pb-12">
       {/* Profile Card with Banner */}
-      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl relative">
+      <div className={`bg-zinc-950 border-2 ${activeThemeStyle.borderClass} ${activeThemeStyle.cardShadow} rounded-3xl overflow-hidden shadow-2xl relative transition-all duration-300`}>
         {/* Customizable Cover Banner */}
-        <div className={`h-24 w-full ${bannerStyle} relative flex items-end justify-end p-3`}>
+        <div className={`h-28 w-full ${bannerStyle} relative flex items-end justify-between p-3`}>
+          {/* Active Theme Badge on Cover */}
+          <span className={`px-2.5 py-1 rounded-full text-[9px] font-mono font-black uppercase tracking-wider backdrop-blur-md border bg-black/60 ${activeThemeStyle.badgeClass}`}>
+            ● {activeThemeStyle.name} Scheme
+          </span>
+
           <button
             onClick={onOpenCustomize}
-            className="bg-black/60 hover:bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-black uppercase text-white flex items-center gap-1.5 border border-white/20 transition-all shadow-lg"
+            className="bg-black/70 hover:bg-black/90 backdrop-blur-md px-3 py-1.5 rounded-xl text-[10px] font-black uppercase text-white flex items-center gap-1.5 border border-white/20 transition-all shadow-lg active:scale-95"
           >
-            <Camera size={12} className="text-lime-400" /> Customize Banner & Photo
+            <Camera size={12} className={activeThemeStyle.textClass} /> Customize Photo & Theme
           </button>
         </div>
 
         {/* Profile Details Container */}
         <div className="p-6 pt-0 text-center space-y-4">
           {/* Avatar with Camera Badge */}
-          <div className="relative -top-10 -mb-8 inline-block">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-600 via-yellow-400 to-lime-400 p-1 shadow-2xl relative">
+          <div className="relative -top-12 -mb-10 inline-block">
+            <div className={`w-24 h-24 rounded-full p-1 shadow-2xl relative bg-zinc-900 ring-4 ${activeThemeStyle.ringClass} transition-all duration-300`}>
               <div className="w-full h-full rounded-full bg-zinc-900 flex items-center justify-center overflow-hidden">
                 {profile?.avatarUrl ? (
                   <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -1156,7 +1400,7 @@ const ProfileView = ({
               {/* Quick Photo Edit Badge */}
               <button
                 onClick={onOpenCustomize}
-                className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-lime-400 text-black flex items-center justify-center shadow-lg border-2 border-zinc-950 hover:scale-110 transition-transform"
+                className={`absolute bottom-0 right-0 w-7 h-7 rounded-full text-black flex items-center justify-center shadow-lg border-2 border-zinc-950 hover:scale-110 transition-transform ${activeThemeStyle.uploadButton}`}
                 title="Change Photo"
               >
                 <Camera size={13} />
@@ -1169,33 +1413,68 @@ const ProfileView = ({
               <h2 className="text-xl font-black italic uppercase text-white">
                 {profile?.username || 'Unsigned Artist'}
               </h2>
-              <ShieldCheck size={18} className="text-lime-400" />
+              <ShieldCheck size={18} className={activeThemeStyle.textClass} />
             </div>
 
             <p className="text-[10px] font-mono text-zinc-400 flex items-center justify-center gap-1.5 mt-0.5">
-              <MapPin size={11} className="text-lime-400" /> {profile?.location || 'Birmingham, AL'} •{' '}
-              <span className="text-yellow-400 font-bold">{profile?.primaryGenre || 'Rap'}</span>
+              <MapPin size={11} className={activeThemeStyle.textClass} /> {profile?.location || 'Birmingham, AL'} •{' '}
+              <span className={`font-bold ${activeThemeStyle.textClass}`}>{profile?.primaryGenre || 'Rap'}</span>
             </p>
 
-            <span className="text-[10px] font-mono font-bold text-purple-400 uppercase tracking-widest block mt-1">
+            <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-widest block mt-1">
               {profile?.tier || 'Free'} Member • 18+ Verified Authentic
             </span>
 
             {/* Bio */}
             {profile?.bio && (
-              <p className="text-xs text-zinc-400 italic max-w-xs mx-auto mt-2 font-sans">
+              <p className="text-xs text-zinc-300 italic max-w-xs mx-auto mt-2 font-sans">
                 "{profile.bio}"
               </p>
             )}
+          </div>
+
+          {/* Quick UI Color Scheme Toggle on Profile */}
+          <div className="bg-zinc-900/90 border border-zinc-800 p-3 rounded-2xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                <Palette size={12} className={activeThemeStyle.textClass} /> Profile Color Scheme:
+              </span>
+              <span className={`text-[9px] font-mono font-bold uppercase ${activeThemeStyle.textClass}`}>
+                {activeThemeStyle.name}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: 'neon_green' as const, label: '🟢 Neon Green', border: 'border-lime-400', activeBg: 'bg-lime-400/20 text-lime-400 border-lime-400' },
+                { id: 'purple' as const, label: '🟣 Purple', border: 'border-purple-500', activeBg: 'bg-purple-900/40 text-purple-300 border-purple-500' },
+                { id: 'gold' as const, label: '🟡 Gold', border: 'border-yellow-400', activeBg: 'bg-yellow-400/20 text-yellow-300 border-yellow-400' },
+              ].map((theme) => {
+                const isSelected = currentTheme === theme.id;
+                return (
+                  <button
+                    key={theme.id}
+                    onClick={() => onThemeChange(theme.id)}
+                    className={`py-1.5 px-2 rounded-xl text-[10px] font-mono font-black uppercase transition-all border ${
+                      isSelected
+                        ? `${theme.activeBg} shadow-md`
+                        : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-white'
+                    }`}
+                  >
+                    {theme.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Customize Profile Button */}
           <div className="pt-1">
             <button
               onClick={onOpenCustomize}
-              className="w-full py-2.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 hover:border-lime-400 text-lime-400 text-xs font-black uppercase flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+              className={`w-full py-2.5 rounded-2xl bg-zinc-900 hover:bg-zinc-800 border ${activeThemeStyle.actionButton} text-xs font-black uppercase flex items-center justify-center gap-2 transition-all shadow-md active:scale-95`}
             >
-              <Edit3 size={14} /> Edit Profile & Photo Options
+              <Edit3 size={14} /> Open Full Theme & Photo Studio
             </button>
           </div>
 
@@ -1203,7 +1482,7 @@ const ProfileView = ({
           <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-800/80">
             <div className="bg-zinc-900/80 p-2.5 rounded-2xl">
               <span className="text-[9px] font-black uppercase text-zinc-500 block">Solo Rating</span>
-              <span className="text-sm font-mono font-black text-lime-400">
+              <span className={`text-sm font-mono font-black ${activeThemeStyle.ratingAccent}`}>
                 {profile?.ratings.solo ?? 4.8}
               </span>
             </div>
@@ -1227,7 +1506,7 @@ const ProfileView = ({
             </div>
             <div className="bg-zinc-900/80 p-2.5 rounded-2xl">
               <span className="text-[9px] font-black uppercase text-zinc-500 block">Feature Rating</span>
-              <span className="text-sm font-mono font-black text-lime-400">
+              <span className={`text-sm font-mono font-black ${activeThemeStyle.ratingAccent}`}>
                 {profile?.ratings.feature ?? 4.8}
               </span>
             </div>
@@ -1250,7 +1529,7 @@ const ProfileView = ({
           </div>
           <button
             onClick={onOpenUpload}
-            className="bg-lime-400 hover:bg-lime-300 text-black px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 shadow-lg shadow-lime-400/20 active:scale-95 transition-all"
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase flex items-center gap-1.5 transition-all active:scale-95 ${activeThemeStyle.uploadButton}`}
           >
             <Plus size={16} /> Upload Media
           </button>
@@ -1266,6 +1545,42 @@ const ProfileView = ({
               <span className="text-[9px] font-mono text-zinc-400 uppercase">Drop #{i}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Cash Stage Official Store & Anti-AI Human Certification */}
+      <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-600 to-lime-400 text-black font-black flex items-center justify-center text-xs shadow-md">
+              CS
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase text-white">Cash Stage Official Store App</h4>
+              <p className="text-[10px] text-zinc-400 font-mono">com.cash.missalabamaslammer.cashstage</p>
+            </div>
+          </div>
+          <a
+            href="https://play.google.com/store/apps/details?id=com.cash.missalabamaslammer.cashstage"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 rounded-xl bg-lime-400 text-black text-[10px] font-black uppercase flex items-center gap-1 hover:bg-lime-300 transition-all shadow-md shadow-lime-400/20"
+          >
+            Google Play <ExternalLink size={10} />
+          </a>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800/80 p-3 rounded-2xl flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={18} className="text-lime-400" />
+            <div>
+              <span className="text-[10px] font-black uppercase text-white block">Anti-AI Deepfake Shield</span>
+              <span className="text-[9px] font-mono text-zinc-400">Spectral Entropy: 99.4% Authentic Human Voice</span>
+            </div>
+          </div>
+          <span className="px-2 py-0.5 rounded-full text-[8px] font-mono font-black uppercase tracking-wider bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
+            👑 Golden Seal
+          </span>
         </div>
       </div>
 

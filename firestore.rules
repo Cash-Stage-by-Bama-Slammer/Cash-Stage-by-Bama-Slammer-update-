@@ -37,8 +37,8 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       allow update: if isSignedIn() && (
         isOwner(userId) || 
-        // Allow updating stats, rating, or balances via actions
-        incoming().diff(existing()).affectedKeys().hasAny(['username', 'avatarUrl', 'bio', 'genre', 'tier', 'bamaBucks', 'csCoins', 'xp', 'learningLevel', 'ratings', 'dailyDropsUsed', 'crewId', 'isBanned', 'bannedReason'])
+        // Allow updating stats, rating, theme, or balances via actions
+        incoming().diff(existing()).affectedKeys().hasAny(['username', 'avatarUrl', 'bio', 'genre', 'primaryGenre', 'profileTheme', 'bannerTheme', 'location', 'tier', 'bamaBucks', 'csCoins', 'xp', 'learningLevel', 'ratings', 'dailyDropsUsed', 'crewId', 'isBanned', 'bannedReason'])
       );
     }
 
